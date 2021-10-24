@@ -1,0 +1,12 @@
+[Unit]
+Description=AMD GPU fan control
+Documentation=http://github.com/luismsgomes/amdgpu-fan-ctrl/
+
+[Service]
+User=root
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/amdgpu-fan-ctrl
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
