@@ -16,7 +16,7 @@ your GPU fan control to automatic mode.
 This tool manipulates the ROCK (Radeon Open Compute Kernel) via sysfs files.
 """
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __author__ = "Luís Gomes <luismsgomes@gmail.com>"
 
 # Note: parts of this code were copied/adapted from rocm_smi.py available from

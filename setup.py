@@ -12,7 +12,7 @@ setup(
     url="https://github.com/luismsgomes/amdgpu-fan-ctrl",
     author="Luís Gomes",
     author_email="luismsgomes@gmail.com",
-    version="0.0.1",
+    version="0.0.2",
     package_dir={"": "."},
     py_modules=["amdgpu_fan_ctrl"],
     license="MIT",
