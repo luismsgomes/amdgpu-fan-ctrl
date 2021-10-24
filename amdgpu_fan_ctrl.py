@@ -1,12 +1,27 @@
 #! /usr/bin/env python3
-""" Control fan speed of AMD GPU
+"""Control fan speed of AMD GPU
 
-This tool manipulates the ROCK (Radeon Open Compute Kernel)
-via sysfs files.
+DISCLAIMER
+
+USE OF THIS SOFTWARE IS ENTIRELY OF YOUR RESPONSABILITY.
+HARDWARE DAMAGE MAY RESULT FROM HIGH TEMPERATURES WHILE USING THIS SOFTWARE.
+
+
+WARNING
+
+This software puts your GPU into manual fan control.
+If you stop this software you should reboot your computer or manually reset
+your GPU fan control to automatic mode.
+
+This tool manipulates the ROCK (Radeon Open Compute Kernel) via sysfs files.
 """
 
 __version__ = "0.0.1"
 __author__ = "Luís Gomes <luismsgomes@gmail.com>"
+
+# Note: parts of this code were copied/adapted from rocm_smi.py available from
+# https://github.com/RadeonOpenCompute/ROC-smi
+# which is also distributed under the MIT license.
 
 
 import datetime
@@ -182,11 +197,6 @@ VALUEPATHS = {
     "ras_athub": {
         "prefix": DRMPREFIX,
         "filepath": "ras/athub_err_count",
-        "needsparse": False,
-    },
-    "ras_sdma": {
-        "prefix": DRMPREFIX,
-        "filepath": "ras/sdma_err_count",
         "needsparse": False,
     },
     "ras_pcie_bif": {
@@ -369,7 +379,7 @@ def get_sysfs_value(device: str, key: str):
     try:
         with open(file_path, "r") as f:
             value = f.read().rstrip("\n")
-    except:
+    except Exception:
         logging.warning(
             "GPU[%s]\t: Unable to read %s", parse_device_name(device), file_path
         )
@@ -681,8 +691,11 @@ def monitor_and_control():
                 device_temp[device], temp_delta, fan_speed
             )
             logging.debug(
-                f"device={device}, temp={device_temp[device]}, temp_delta={temp_delta}, "
-                f"fan_speed={fan_speed}%, delta={fan_speed_delta}"
+                f"device={device}, "
+                f"temp={device_temp[device]}, "
+                f"temp_delta={temp_delta}, "
+                f"fan_speed={fan_speed}%, "
+                f"delta={fan_speed_delta}"
             )
 
             if i % 5 == 0:
