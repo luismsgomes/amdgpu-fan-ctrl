@@ -712,6 +712,8 @@ def monitor_and_control():
 if __name__ == "__main__":
     import sys
 
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
     logging.basicConfig(
         level=logging.DEBUG
         if "-vv" in sys.argv[1:]
