@@ -678,8 +678,10 @@ def sign(value):
 def monitor_and_control():
     devices = get_all_devices()
     device_temp = dict()
+    last_reported_device_temp = dict()
     for device in devices:
         device_temp[device] = get_temp(device)
+        last_reported_device_temp[device] = None
 
     for i in itertools.count():
         time.sleep(UPDATE_INTERVAL)
@@ -698,10 +700,12 @@ def monitor_and_control():
                 f"delta={fan_speed_delta}"
             )
 
-            if i % 5 == 0:
-                now = datetime.datetime.now()
+            # report each 10 seconds (5 iterations x UPDATE_INTERVAL)
+            # only if temperature has changed since last report
+            if i % 5 == 0 and last_reported_device_temp[device] != device_temp[device]:
+                last_reported_device_temp[device] = device_temp[device]
                 print(
-                    f"{now} || device {device} || "
+                    f"device {device} || "
                     f"temperature: {device_temp[device]}°C || "
                     f"fan speed: {fan_speed:.1f}%  "
                 )

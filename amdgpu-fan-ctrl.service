@@ -7,6 +7,7 @@ User=root
 WorkingDirectory=/root
 ExecStart=/usr/local/bin/amdgpu-fan-ctrl
 Restart=always
+StandardOutput=syslog+console
 
 [Install]
 WantedBy=multi-user.target
