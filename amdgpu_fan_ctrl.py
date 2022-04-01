@@ -24,8 +24,7 @@ __author__ = "Luís Gomes <luismsgomes@gmail.com>"
 # which is also distributed under the MIT license.
 
 
-import datetime
-import itertools
+from datetime import datetime
 import logging
 import os.path
 import re
@@ -35,14 +34,22 @@ import time
 UPDATE_INTERVAL = 2.0  # seconds
 MIN_FAN_SPEED = 18.0  # percent
 
+# report to syslog when temperature changed at least this amount
+# since the last report
+REPORT_DELTA_TEMP = 3  # celcius degrees
+
+# report to syslog if REPORT_DELTA_SECS seconds have passed since last
+# report even if temperature has not changed more than REPORT_DELTA_TEMP
+REPORT_DELTA_SECS = 3600  # seconds
+
 # don't start the fan until temperature is greater than COLD_TEMP
-COLD = 50.0
+COLD = 50.0  # celcius degrees
 
 # as soon as temperature reaches HOT_TEMP, fan will run at 100%
-HOT = 75.0
+HOT = 75.0  # celcius degrees
 
 # how much percent of fan speed do we change at a time
-FAN_DELTA = 1.0
+FAN_DELTA = 1.0  # percent
 
 DRMPREFIX = "/sys/class/drm"
 HWMONPREFIX = "/sys/class/hwmon"
@@ -671,46 +678,60 @@ def compute_fan_speed_delta(temp: float, temp_delta: float, fan_speed: float):
     return 0.0
 
 
-def sign(value):
-    return "+" if value >= 0 else "-"
+class DeviceMonitor:
+    def __init__(self, device: str):
+        self.device = device
+        self.temp = get_temp(device)
+        self.fan_speed = get_fan_speed(device)
+        self.timestamp = datetime.now()
+        self.last_report_temp = None
+        self.last_report_timestamp = None
+        self.report()
+
+    def update(self):
+        prev_timestamp, self.timestamp = self.timestamp, datetime.now()
+        interval = (self.timestamp - prev_timestamp).total_seconds()
+
+        prev_temp, self.temp = self.temp, get_temp(self.device)
+        temp_delta = (self.temp - prev_temp) / interval
+
+        self.fan_speed = get_fan_speed(self.device)
+        fan_speed_delta = compute_fan_speed_delta(self.temp, temp_delta, self.fan_speed)
+
+        logging.debug(
+            f"device={self.device}, "
+            f"temp={self.temp}, "
+            f"temp_delta={temp_delta}, "
+            f"fan_speed={self.fan_speed}%, "
+            f"delta={fan_speed_delta}"
+        )
+        if fan_speed_delta:
+            set_fan_speed(self.device, self.fan_speed + fan_speed_delta)
+
+        temp_delta_since_last_report = self.temp - self.last_report_temp
+        time_delta_since_last_report = self.timestamp - self.last_report_timestamp
+        if (
+            abs(temp_delta_since_last_report) >= REPORT_DELTA_TEMP
+            or time_delta_since_last_report.total_seconds() >= REPORT_DELTA_SECS
+        ):
+            self.report()
+
+    def report(self):
+        print(
+            f"device {self.device} || "
+            f"temperature: {self.temp}°C || "
+            f"fan speed: {self.fan_speed:.1f}%  "
+        )
+        self.last_report_temp = self.temp
+        self.last_report_timestamp = datetime.now()
 
 
 def monitor_and_control():
-    devices = get_all_devices()
-    device_temp = dict()
-    last_reported_device_temp = dict()
-    for device in devices:
-        device_temp[device] = get_temp(device)
-        last_reported_device_temp[device] = None
-
-    for i in itertools.count():
+    monitors = [DeviceMonitor(device) for device in get_all_devices()]
+    while True:
         time.sleep(UPDATE_INTERVAL)
-        for device in devices:
-            old_temp, device_temp[device] = device_temp[device], get_temp(device)
-            temp_delta = (device_temp[device] - old_temp) / UPDATE_INTERVAL
-            fan_speed = get_fan_speed(device)
-            fan_speed_delta = compute_fan_speed_delta(
-                device_temp[device], temp_delta, fan_speed
-            )
-            logging.debug(
-                f"device={device}, "
-                f"temp={device_temp[device]}, "
-                f"temp_delta={temp_delta}, "
-                f"fan_speed={fan_speed}%, "
-                f"delta={fan_speed_delta}"
-            )
-
-            # report each 10 seconds (5 iterations x UPDATE_INTERVAL)
-            # only if temperature has changed since last report
-            if i % 5 == 0 and last_reported_device_temp[device] != device_temp[device]:
-                last_reported_device_temp[device] = device_temp[device]
-                print(
-                    f"device {device} || "
-                    f"temperature: {device_temp[device]}°C || "
-                    f"fan speed: {fan_speed:.1f}%  "
-                )
-            if fan_speed_delta:
-                set_fan_speed(device, fan_speed + fan_speed_delta)
+        for monitor in monitors:
+            monitor.update()
 
 
 if __name__ == "__main__":
